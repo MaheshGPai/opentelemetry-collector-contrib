@@ -117,7 +117,7 @@ func newDimensions(cfgDims []Dimension) []utilattri.Dimension {
 }
 
 func newConnector(logger *zap.Logger, config component.Config, clock clockwork.Clock, instanceID string) (*connectorImp, error) {
-	logger.Info("Building spanmetrics connector")
+	logger.Info("Building custom spanmetrics connector")
 	cfg := config.(*Config)
 	if cfg.DimensionsCacheSize != 0 {
 		logger.Warn("DimensionsCacheSize is deprecated, please use AggregationCardinalityLimit instead.")
@@ -419,7 +419,7 @@ func (p *connectorImp) aggregateMetrics(traces ptrace.Traces) {
 				// aggregate sums metrics
 				s, limitReached := sums.GetOrCreate(key, attributesFun, startTimestamp)
 				if !limitReached && p.config.Exemplars.Enabled && !span.TraceID().IsEmpty() {
-					s.AddExemplar(span.TraceID(), span.SpanID(), duration)
+					s.AddExemplar(span.TraceID(), span.SpanID(), duration, span)
 				}
 				s.Add(1)
 
@@ -461,7 +461,7 @@ func (p *connectorImp) aggregateMetrics(traces ptrace.Traces) {
 						}
 						e, eventLimitReached := events.GetOrCreate(eKey, attributesFun, startTimestamp)
 						if !eventLimitReached && p.config.Exemplars.Enabled && !span.TraceID().IsEmpty() {
-							e.AddExemplar(span.TraceID(), span.SpanID(), duration)
+							e.AddExemplar(span.TraceID(), span.SpanID(), duration, span)
 						}
 						e.Add(1)
 					}
@@ -479,7 +479,7 @@ func (p *connectorImp) addExemplar(span ptrace.Span, duration float64, h metrics
 		return
 	}
 
-	h.AddExemplar(span.TraceID(), span.SpanID(), duration)
+	h.AddExemplar(span.TraceID(), span.SpanID(), duration, span)
 }
 
 type resourceKey [16]byte

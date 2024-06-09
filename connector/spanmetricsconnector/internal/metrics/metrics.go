@@ -6,6 +6,8 @@ package metrics // import "github.com/open-telemetry/opentelemetry-collector-con
 import (
 	"sort"
 
+	"go.opentelemetry.io/collector/pdata/ptrace"
+
 	"github.com/lightstep/go-expohisto/structure"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -16,6 +18,9 @@ const overflowKey = "otel.metric.overflow"
 
 type Key string
 
+const TailSamplingTag = "intuit.tail-sampling.sampled"
+const GlobalSamplingRateTag = "intuit.global-sampling.rate"
+
 type HistogramMetrics interface {
 	GetOrCreate(key Key, attributesFun BuildAttributesFun, startTimestamp pcommon.Timestamp) (Histogram, bool)
 	BuildMetrics(pmetric.Metric, pcommon.Timestamp, func(Key, pcommon.Timestamp) pcommon.Timestamp, pmetric.AggregationTemporality)
@@ -24,7 +29,7 @@ type HistogramMetrics interface {
 
 type Histogram interface {
 	Observe(value float64)
-	AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64)
+	AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64, span ptrace.Span)
 }
 
 type explicitHistogramMetrics struct {
@@ -269,9 +274,17 @@ func (h *explicitHistogram) Observe(value float64) {
 	h.bucketCounts[index]++
 }
 
-func (h *explicitHistogram) AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64) {
+func (h *explicitHistogram) AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64, span ptrace.Span) {
 	if h.exemplars.Len() >= h.maxExemplarCount {
 		return
+	}
+	// Intuit specific handling with tailsampling configured
+	// Add only sampled traceId as exemplar
+	if _, isTag1Present := span.Attributes().Get(GlobalSamplingRateTag); !isTag1Present {
+		if _, isTag2Present := span.Attributes().Get(TailSamplingTag); !isTag2Present {
+			// Both the sampling tags are not present - so the span is not sampled
+			return
+		}
 	}
 	e := h.exemplars.AppendEmpty()
 	e.SetTraceID(traceID)
@@ -283,9 +296,17 @@ func (h *exponentialHistogram) Observe(value float64) {
 	h.histogram.Update(value)
 }
 
-func (h *exponentialHistogram) AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64) {
+func (h *exponentialHistogram) AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64, span ptrace.Span) {
 	if h.exemplars.Len() >= h.maxExemplarCount {
 		return
+	}
+	// Intuit specific handling with tailsampling configured
+	// Add only sampled traceId as exemplar
+	if _, isTag1Present := span.Attributes().Get(GlobalSamplingRateTag); !isTag1Present {
+		if _, isTag2Present := span.Attributes().Get(TailSamplingTag); !isTag2Present {
+			// Both the sampling tags are not present - so the span is not sampled
+			return
+		}
 	}
 	e := h.exemplars.AppendEmpty()
 	e.SetTraceID(traceID)
@@ -365,9 +386,17 @@ func (m *SumMetrics) GetOrCreate(key Key, attributesFun BuildAttributesFun, star
 	return s, limitReached
 }
 
-func (s *Sum) AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64) {
+func (s *Sum) AddExemplar(traceID pcommon.TraceID, spanID pcommon.SpanID, value float64, span ptrace.Span) {
 	if s.exemplars.Len() >= s.maxExemplarCount {
 		return
+	}
+	// Intuit specific handling with tailsampling configured
+	// Add only sampled traceId as exemplar
+	if _, isTag1Present := span.Attributes().Get(GlobalSamplingRateTag); !isTag1Present {
+		if _, isTag2Present := span.Attributes().Get(TailSamplingTag); !isTag2Present {
+			// Both the sampling tags are not present - so the span is not sampled
+			return
+		}
 	}
 	e := s.exemplars.AppendEmpty()
 	e.SetTraceID(traceID)

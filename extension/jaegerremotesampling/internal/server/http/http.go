@@ -51,6 +51,8 @@ func NewHTTP(telemetry component.TelemetrySettings, settings confighttp.ServerCo
 	// SEE: https://www.jaegertracing.io/docs/1.41/apis/#remote-sampling-configuration-stable
 	srv.mux.Handle("/sampling", http.HandlerFunc(srv.samplingStrategyHandler))
 
+	srv.mux.Handle("/", http.HandlerFunc(srv.samplingStrategyHandler))
+
 	return srv, nil
 }
 

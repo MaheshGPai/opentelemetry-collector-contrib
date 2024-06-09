@@ -4,6 +4,7 @@
 package metrics
 
 import (
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"testing"
 
 	"github.com/lightstep/go-expohisto/structure"
@@ -160,7 +161,7 @@ func TestSum_AddExemplar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.input.AddExemplar(pcommon.TraceID{}, pcommon.SpanID{}, 4)
+			tt.input.AddExemplar(pcommon.TraceID{}, pcommon.SpanID{}, 4, getExemplarSpan())
 			assert.Equal(t, tt.want, tt.input.exemplars.Len())
 		})
 	}
@@ -221,7 +222,7 @@ func TestExplicitHistogram_AddExemplar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.input.AddExemplar(pcommon.TraceID{}, pcommon.SpanID{}, 4)
+			tt.input.AddExemplar(pcommon.TraceID{}, pcommon.SpanID{}, 4, getExemplarSpan())
 			assert.Equal(t, tt.want, tt.input.exemplars.Len())
 		})
 	}
@@ -282,7 +283,7 @@ func TestExponentialHistogram_AddExemplar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.input.AddExemplar(pcommon.TraceID{}, pcommon.SpanID{}, 4)
+			tt.input.AddExemplar(pcommon.TraceID{}, pcommon.SpanID{}, 4, getExemplarSpan())
 			assert.Equal(t, tt.want, tt.input.exemplars.Len())
 		})
 	}
@@ -584,4 +585,10 @@ func TestSumMetrics_ClearExemplars(t *testing.T) {
 			}
 		})
 	}
+}
+
+func getExemplarSpan() ptrace.Span {
+	span := ptrace.NewSpan()
+	span.Attributes().PutStr(TailSamplingTag, "true")
+	return span
 }

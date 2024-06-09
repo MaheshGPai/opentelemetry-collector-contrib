@@ -1,0 +1,3 @@
+ignore-files:
+  - vendor/golang.org/x/oauth2/jwt/jwt_test.go
+  - vendor/golang.org/x/oauth2/oauth2_test.go
