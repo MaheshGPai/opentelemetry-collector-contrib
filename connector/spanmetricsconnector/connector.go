@@ -111,7 +111,7 @@ func newDimensions(cfgDims []Dimension) []dimension {
 }
 
 func newConnector(logger *zap.Logger, config component.Config, clock clock.Clock) (*connectorImp, error) {
-	logger.Info("Building spanmetrics connector")
+	logger.Info("Building custom spanmetrics connector")
 	cfg := config.(*Config)
 
 	metricKeyToDimensionsCache, err := cache.NewCache[metrics.Key, pcommon.Map](cfg.DimensionsCacheSize)
@@ -413,7 +413,7 @@ func (p *connectorImp) aggregateMetrics(traces ptrace.Traces) {
 				// aggregate sums metrics
 				s := sums.GetOrCreate(key, attributes)
 				if p.config.Exemplars.Enabled && !span.TraceID().IsEmpty() {
-					s.AddExemplar(span.TraceID(), span.SpanID(), duration)
+					s.AddExemplar(span.TraceID(), span.SpanID(), duration, span)
 				}
 				s.Add(1)
 
@@ -437,7 +437,7 @@ func (p *connectorImp) aggregateMetrics(traces ptrace.Traces) {
 						}
 						e := events.GetOrCreate(eKey, eAttributes)
 						if p.config.Exemplars.Enabled && !span.TraceID().IsEmpty() {
-							e.AddExemplar(span.TraceID(), span.SpanID(), duration)
+							e.AddExemplar(span.TraceID(), span.SpanID(), duration, span)
 						}
 						e.Add(1)
 					}
@@ -455,7 +455,7 @@ func (p *connectorImp) addExemplar(span ptrace.Span, duration float64, h metrics
 		return
 	}
 
-	h.AddExemplar(span.TraceID(), span.SpanID(), duration)
+	h.AddExemplar(span.TraceID(), span.SpanID(), duration, span)
 }
 
 type resourceKey [16]byte
